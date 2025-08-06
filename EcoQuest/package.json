@@ -1,0 +1,25 @@
+{
+  "name": "my-node-express-mongodb-app",
+  "version": "1.0.0",
+  "description": "A Node.js application using Express and MongoDB",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "color": "^5.0.0",
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "express-validator": "^7.2.1",
+    "md5": "^2.3.0",
+    "mongoose": "^5.10.9"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  },
+  "author": "",
+  "license": "ISC"
+}
