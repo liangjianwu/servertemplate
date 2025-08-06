@@ -16,9 +16,7 @@ app.use(bodyParser.json());
 
 // Database connection
 dbConfig();
-
 // Routes
-
 app.use('/api', Auth.authRouter)
 for(let r of routes.routers) {    
     app.use('/api/'+r.module,r.router)
