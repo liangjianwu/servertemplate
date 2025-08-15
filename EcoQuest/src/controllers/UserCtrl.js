@@ -4,7 +4,7 @@ const { returnResult, returnError } = require('../components/errcode');
 const { doWithTry } = require('../components/util');
 const { User, UserProfile } = require('../models/Models');
 const { body } = require('express-validator');
-const emailService = require('../services/EmailService');
+const EmailService = require('../services/EmailService');
 const { generateCode } = require("../components/util");
 
 module.exports.register = {
@@ -37,7 +37,7 @@ module.exports.register = {
                 });
 
                 const savedUser = await user.save();
-                await emailService.sendWelcomeEmail(savedUser.email, savedUser.nick);
+                await EmailService.sendWelcomeEmail(savedUser.email, savedUser.nick);
 
                 // Create user profile
                 const userProfile = new UserProfile({
