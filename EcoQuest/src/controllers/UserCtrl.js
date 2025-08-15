@@ -143,7 +143,7 @@ module.exports.resetPassword = {
                 await user.save();
 
                 // Send email
-                const emailSent = await emailService.sendPasswordResetEmail(email, resetToken);
+                const emailSent = await EmailService.sendPasswordResetEmail(email, resetToken);
                 
                 if (!emailSent) {
                     return returnError(res, 900005, 'Failed to send reset email');
