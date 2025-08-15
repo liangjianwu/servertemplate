@@ -1,9 +1,10 @@
 const nodemailer = require('nodemailer');
 const { Debug } = require('../components');
-require('dotenv').config();
-
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 class EmailService {
     constructor() {
+        Debug(process.env.SMTP_HOST);
         this.transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: process.env.SMTP_PORT,
