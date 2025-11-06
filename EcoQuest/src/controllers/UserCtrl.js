@@ -1,11 +1,16 @@
 const md5 = require('md5');
-const crypto = require('crypto');  // Add this line
+const crypto = require('crypto');
 const { returnResult, returnError } = require('../components/errcode');
 const { doWithTry } = require('../components/util');
-const { User, UserProfile } = require('../models/Models');
+const { User, UserProfile } = require('../models/UserModels');
 const { body } = require('express-validator');
 const EmailService = require('../services/EmailService');
 const { generateCode } = require("../components/util");
+const { OAuth2Client } = require('google-auth-library');
+const AppleSignIn = require('apple-signin-auth');
+
+// Initialize Google OAuth client
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 module.exports.register = {
     // Register new user
@@ -185,4 +190,175 @@ module.exports.changeProfile = {
             });
         }
     ]
-}
+};
+
+// Add OAuth routes
+module.exports.googleauth = {
+    post: [
+        [
+            body('token').isString().notEmpty().withMessage('Google token is required'),
+        ],
+        async (req, res) => {
+            doWithTry(res, async () => {
+                const { token } = req.body;
+
+                try {
+                    // Verify Google token
+                    const ticket = await googleClient.verifyIdToken({
+                        idToken: token,
+                        audience: process.env.GOOGLE_CLIENT_ID
+                    });
+
+                    const payload = ticket.getPayload();
+                    
+                    // Google token payload contains all these fields:
+                    const {
+                        email,          // User's email address
+                        email_verified, // Boolean
+                        name,           // Full name
+                        given_name,     // First name
+                        family_name,    // Last name
+                        picture,        // Profile picture URL
+                        locale,         // User's locale
+                        sub: googleId   // Unique Google ID
+                    } = payload;
+
+                    // Verify email is validated by Google
+                    if (!email_verified) {
+                        return returnError(res, 900016, 'Email not verified with Google');
+                    }
+
+                    // Check if user exists
+                    let user = await User.findOne({ 
+                        $or: [
+                            { email },
+                            { google_id: googleId }
+                        ] 
+                    });
+
+                    if (!user) {
+                        // Create new user using Google profile data
+                        user = new User({
+                            email,
+                            nick: name || email.split('@')[0],
+                            first_name: given_name || '',
+                            last_name: family_name || '',
+                            status: 1,
+                            google_id: googleId,
+                            passwd: md5(crypto.randomBytes(16).toString('hex'))
+                        });
+
+                        await user.save();
+
+                        // Create user profile
+                        const userProfile = new UserProfile({
+                            user_id: user._id,
+                            avatar: picture,
+                            bio: null,
+                            display: name,
+                            locale: locale
+                        });
+                        await userProfile.save();
+                    }
+
+                    // Generate authentication token
+                    const authToken = md5(user._id + Date.now().toString());
+                    const expiry_time = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+                    // Update user session
+                    user.token = authToken;
+                    user.expiry_time = expiry_time;
+                    user.ua = req.headers['user-agent'];
+                    user.ip = req.ip;
+                    await user.save();
+
+                    return returnResult(res, {
+                        uid: user._id,
+                        status: user.status,
+                        token: authToken,
+                        expiry_time: expiry_time
+                    });
+
+                } catch (error) {
+                    console.error('Google token verification failed:', error);
+                    return returnError(res, 900014, 'Invalid Google token');
+                }
+            });
+        }
+    ]
+};
+
+module.exports.appleauth = {
+    post: [
+        [
+            body('token').isString().notEmpty().withMessage('Apple ID token is required'),
+        ],
+        async (req, res) => {
+            doWithTry(res, async () => {
+                const { token } = req.body;
+
+                try {
+                    // Verify Apple token
+                    const appleResponse = await AppleSignIn.verifyIdToken(token, {
+                        audience: process.env.APPLE_CLIENT_ID,
+                        ignoreExpiration: false,
+                    });
+
+                    const { email, sub: appleId } = appleResponse;
+                    
+                    // Check if user exists
+                    let user = await User.findOne({ 
+                        $or: [
+                            { email },
+                            { apple_id: appleId }
+                        ]
+                    });
+
+                    if (!user) {
+                        // Create new user
+                        user = new User({
+                            email,
+                            nick: email.split('@')[0], // Use email prefix as nickname
+                            status: 1,
+                            apple_id: appleId,
+                            passwd: md5(crypto.randomBytes(16).toString('hex'))
+                        });
+
+                        await user.save();
+
+                        // Create user profile
+                        const userProfile = new UserProfile({
+                            user_id: user._id,
+                            avatar: null,
+                            bio: null,
+                            display: null
+                        });
+                        await userProfile.save();
+                    }
+
+                    // Generate authentication token
+                    const authToken = md5(user._id + Date.now().toString());
+                    const expiry_time = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+                    // Update user session
+                    user.token = authToken;
+                    user.expiry_time = expiry_time;
+                    user.ua = req.headers['user-agent'];
+                    user.ip = req.ip;
+                    await user.save();
+
+                    return returnResult(res, {
+                        uid: user._id,
+                        status: user.status,
+                        token: authToken,
+                        expiry_time: expiry_time
+                    });
+
+                } catch (error) {
+                    console.error('Apple token verification failed:', error);
+                    return returnError(res, 900024, 'Invalid Apple token');
+                }
+            });
+        }
+    ]
+};
