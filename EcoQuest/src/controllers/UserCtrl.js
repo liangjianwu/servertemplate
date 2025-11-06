@@ -66,6 +66,7 @@ module.exports.register = {
         }
     ],
 }
+
     // User signin
 module.exports.signin = {
     post: [
@@ -200,6 +201,7 @@ module.exports.googleauth = {
         ],
         async (req, res) => {
             doWithTry(res, async () => {
+                console.log('Google Auth Token:', req.body.token);
                 const { token } = req.body;
 
                 try {

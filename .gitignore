@@ -1,2 +1,4 @@
 Ecoquest/node_modules/
 Ecoquest/src/.env
+Ecoquest/public/uploads/*
+Ecoquest/!public/uploads/.gitkeep
