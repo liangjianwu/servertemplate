@@ -8,11 +8,12 @@ const dbConfig = require('./config/db');
 const fileUpload = require('express-fileupload');
 const path = require('path');
 const aiQueue = require('./services/AIQueue');
+
+
 const app = express();
 const PORT = process.env.PORT || 3000; ~
-
-    // Middleware
-    app.use(bodyParser.urlencoded({ extended: true }));
+// Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors())
 app.use(bodyParser.json());
 
@@ -21,8 +22,6 @@ app.use(fileUpload({
     limits: { fileSize: 5 * 1024 * 1024 },
     abortOnLimit: true
 }));
-
-// Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Database connection

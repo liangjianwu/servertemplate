@@ -3,7 +3,7 @@ const path = require('path');
 const { Image } = require('../models/ImageModels');
 const { SpeciesRecognition } = require('../models/SpeciesRecognitionModels');
 const { returnResult, returnError } = require('../components/errcode');
-const { body, param } = require('express-validator');
+const { body, query } = require('express-validator');
 const { doWithTry } = require('../components/util');
 
 // Helper function to ensure upload directory exists
@@ -136,14 +136,15 @@ module.exports.recognizeimage = {
 module.exports.document = {
     get: [
         [
-            param('documentId').exists().isMongoId().withMessage('Valid documentId is required'),
+            query('documentId').exists().isMongoId().withMessage('Valid documentId is required'),
         ],
         async (req, res) => {
             doWithTry(res, async () => {
-                const { documentId } = req.params;
+                const { documentId } = req.query;
 
                 try {
                     // Find the species recognition document and populate image references
+                    console.log('Fetching documentId:', documentId);
                     const speciesDoc = await SpeciesRecognition.findById(documentId)
                         .populate('imageIds', 'url filename mimetype size userid');
 
