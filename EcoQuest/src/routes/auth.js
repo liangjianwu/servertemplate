@@ -1,15 +1,16 @@
 const { returnError } = require("../components/errcode")
 const { doWithTry } = require("../components/util")
+const { resetpassword, confirmreset, signin, register, googleauth, appleauth } = require("../controllers/UserCtrl")
 const { User } = require("../models/UserModels")
 const md5 = require('md5')
 const passPath = {
     user: {
         register: ['POST'],
-        login: ['POST'],
-        verifycode: ['GET', 'POST'],
-        sendcode: ['POST'],
-        resetpwd: ['POST'],
-        sendcode1: ['POST'],
+        signin: ['POST'],
+        googleauth: ['POST'],
+        appleauth: ['POST'],
+        resetpassword: ['POST'],
+        confirmreset: ['POST'],
     },
 }
 
@@ -26,9 +27,11 @@ const checkAuth = async (req, res, callback) => {
 
     })
 }
+
 const auth = async (req, res, callback) => {
     return checkAuth(req, res, callback)
 }
+
 const authRouter = async (req, res, next) => {
 
     let paths = req.path.split('/')

@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
 
 const speciesRecognitionSchema = new mongoose.Schema({
-    imageId: {
+    imageIds: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Image',
-        required: true
-    },
+        ref: 'Image'
+    }],
     name: {
         common: {
             type: String,
@@ -13,7 +12,8 @@ const speciesRecognitionSchema = new mongoose.Schema({
         },
         scientific: {
             type: String,
-            default: null
+            required: true,
+            index: true // Index for faster lookups
         }
     },
     family: {
@@ -42,6 +42,10 @@ const speciesRecognitionSchema = new mongoose.Schema({
         type: String, // Conservation status if applicable
         default: null
     },
+    stockImageUrl: {
+        type: String, // URL to a representative stock/reference image
+        default: null
+    },
     confidence: {
         type: Number,
         default: null
@@ -57,6 +61,9 @@ const speciesRecognitionSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+// Create compound index for scientific name lookups
+speciesRecognitionSchema.index({ 'name.scientific': 1 });
 
 const SpeciesRecognition = mongoose.model('SpeciesRecognition', speciesRecognitionSchema);
 

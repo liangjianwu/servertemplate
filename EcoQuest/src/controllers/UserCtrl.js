@@ -125,7 +125,7 @@ module.exports.signin = {
 };
 
 // Add forgot password functionality
-module.exports.resetPassword = {
+module.exports.resetpassword = {
     post: [
         [
             body('email').isEmail().withMessage('Invalid email format'),
@@ -157,6 +157,59 @@ module.exports.resetPassword = {
 
                 return returnResult(res, {
                     message: 'Password reset instructions sent to email'
+                });
+            });
+        }
+    ]
+};
+
+// Verify reset code and update password
+module.exports.confirmreset = {
+    post: [
+        [
+            body('email').isEmail().withMessage('Invalid email format'),
+            body('code').isString().isLength({ min: 6, max: 6 }).withMessage('Invalid reset code'),
+            body('newPassword').isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+        ],
+        async (req, res) => {
+            doWithTry(res, async () => {
+                const { email, code, newPassword } = req.body;
+                
+                // Find user by email
+                const user = await User.findOne({ email });
+                
+                if (!user) {
+                    return returnError(res, 900006, 'Email not found');
+                }
+
+                // Check if reset token exists
+                if (!user.reset_token || !user.reset_token_expires) {
+                    return returnError(res, 900007, 'No password reset request found');
+                }
+
+                // Check if token has expired
+                if (new Date() > user.reset_token_expires) {
+                    return returnError(res, 900008, 'Reset code has expired');
+                }
+
+                // Verify reset code
+                if (user.reset_token !== code) {
+                    return returnError(res, 900009, 'Invalid reset code');
+                }
+
+                // Update password
+                user.passwd = md5(newPassword);
+                user.reset_token = null;
+                user.reset_token_expires = null;
+                
+                // Invalidate existing session token for security
+                user.token = null;
+                user.expiry_time = null;
+                
+                await user.save();
+
+                return returnResult(res, {
+                    message: 'Password reset successfully. Please sign in with your new password.'
                 });
             });
         }

@@ -1,8 +1,9 @@
 const fs = require('fs').promises;
 const path = require('path');
 const { Image } = require('../models/ImageModels');
+const { SpeciesRecognition } = require('../models/SpeciesRecognitionModels');
 const { returnResult, returnError } = require('../components/errcode');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const { doWithTry } = require('../components/util');
 
 // Helper function to ensure upload directory exists
@@ -18,7 +19,7 @@ const ensureUploadDir = async () => {
 
 // Helper function to validate file type
 const isValidFileType = (mimetype) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     return allowedTypes.includes(mimetype);
 };
 
@@ -28,11 +29,12 @@ const isValidFileSize = (size) => {
     return size <= maxSize;
 };
 
-module.exports.uploadImage = {
+module.exports.uploadimage = {
     post:
         async (req, res) => {
             doWithTry(res, async () => {
                 // Check if file exists in request
+                console.log('Request files:', req.files);
                 if (!req.files || !req.files.image) {
                     return returnError(res, 900101, 'No image file provided');
                 }
@@ -41,7 +43,7 @@ module.exports.uploadImage = {
 
                 // Validate file type
                 if (!isValidFileType(file.mimetype)) {
-                    return returnError(res, 900102, 'Invalid file type. Only JPEG, PNG and GIF allowed');
+                    return returnError(res, 900102, 'Invalid file type. Only JPEG, PNG, WEBP, JPG, and GIF allowed');
                 }
 
                 // Validate file size
@@ -75,7 +77,7 @@ module.exports.uploadImage = {
 
 };
 
-module.exports.recognizeImage = {
+module.exports.recognizeimage = {
     post: [
         [
             body('id').exists().isString().notEmpty().withMessage('id is required'),
@@ -125,6 +127,61 @@ module.exports.recognizeImage = {
                 } catch (error) {
                     console.error('Image processing setup error:', error);
                     return returnError(res, 900203, 'Failed to setup image processing');
+                }
+            });
+        }
+    ]
+}
+
+module.exports.document = {
+    get: [
+        [
+            param('documentId').exists().isMongoId().withMessage('Valid documentId is required'),
+        ],
+        async (req, res) => {
+            doWithTry(res, async () => {
+                const { documentId } = req.params;
+
+                try {
+                    // Find the species recognition document and populate image references
+                    const speciesDoc = await SpeciesRecognition.findById(documentId)
+                        .populate('imageIds', 'url filename mimetype size userid');
+
+                    if (!speciesDoc) {
+                        return returnError(res, 900301, 'Species document not found');
+                    }
+
+                    // Filter images to only include the requesting user's images
+                    const userImages = speciesDoc.imageIds.filter(img => 
+                        img.userid && img.userid.toString() === req.uid
+                    );
+
+                    // Return the species information with only user's images
+                    return returnResult(res, {
+                        id: speciesDoc._id,
+                        name: speciesDoc.name,
+                        family: speciesDoc.family,
+                        kingdom: speciesDoc.kingdom,
+                        speciesType: speciesDoc.speciesType,
+                        funFacts: speciesDoc.funFacts,
+                        facts: speciesDoc.facts,
+                        habitat: speciesDoc.habitat,
+                        conservation: speciesDoc.conservation,
+                        stockImageUrl: speciesDoc.stockImageUrl,
+                        confidence: speciesDoc.confidence,
+                        images: userImages.map(img => ({
+                            id: img._id,
+                            url: img.url,
+                            filename: img.filename
+                        })),
+                        processedAt: speciesDoc.processedAt,
+                        createdAt: speciesDoc.createdAt,
+                        updatedAt: speciesDoc.updatedAt
+                    });
+
+                } catch (error) {
+                    console.error('Error fetching species document:', error);
+                    return returnError(res, 900302, 'Failed to fetch species information');
                 }
             });
         }
