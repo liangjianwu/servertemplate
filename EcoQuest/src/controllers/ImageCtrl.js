@@ -188,3 +188,50 @@ module.exports.document = {
         }
     ]
 }
+
+// Get images for a user where status = 2 (processed) and include associated SpeciesRecognition document
+module.exports.documents = {
+    get: [
+        async (req, res) => {
+            doWithTry(res, async () => {
+                try {
+                    // use authenticated user id from req.uid
+                    const userId = req.uid;
+
+                    if (!userId) {
+                        return returnError(res, 900401, 'Authentication required');
+                    }
+
+                    // find images belonging to user with status 2 and populate the species recognition document
+                    const images = await Image.find({ userid: userId, status: 2 })
+                        .populate('document');
+
+                    // format response
+                    const result = images.map(img => ({
+                        id: img._id,
+                        url: img.url,
+                        filename: img.filename,
+                        size: img.size,
+                        mimetype: img.mimetype,
+                        status: img.status,
+                        document: img.document ? {
+                            id: img.document._id,
+                            name: img.document.name,
+                            family: img.document.family,
+                            kingdom: img.document.kingdom,
+                            speciesType: img.document.speciesType,
+                            confidence: img.document.confidence,
+                            stockImageUrl: img.document.stockImageUrl,
+                            processedAt: img.document.processedAt
+                        } : null
+                    }));
+
+                    return returnResult(res, result);
+                } catch (error) {
+                    console.error('Error fetching images:', error);
+                    return returnError(res, 900402, 'Failed to fetch images');
+                }
+            });
+        }
+    ]
+}
